@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { ThemeProvider } from './hooks/useTheme'
 import { useWebSocket } from './hooks/useWebSocket'
-import TopBar, { type TabId, TABS } from './components/TopBar'
+import TopBar from './components/TopBar'
 import CommandPalette from './components/CommandPalette'
 import BootScreen from './components/BootScreen'
 import DashboardPanel from './components/DashboardPanel'
@@ -17,6 +17,8 @@ import ProfilesPanel from './components/ProfilesPanel'
 import TokenCostsPanel from './components/TokenCostsPanel'
 import CorrectionsPanel from './components/CorrectionsPanel'
 import PatternsPanel from './components/PatternsPanel'
+import { LanguageProvider, useI18n } from './i18n'
+import { TABS, type TabId } from './constants/tabs'
 
 function TabContent({ tab }: { tab: TabId }) {
   switch (tab) {
@@ -54,11 +56,12 @@ const GRID_CLASS: Record<TabId, string> = {
   patterns: 'grid-cols-1 lg:grid-cols-2',
 }
 
-export default function App() {
+function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard')
   const [booted, setBooted] = useState(() => {
     return sessionStorage.getItem('hud-booted') === 'true'
   })
+  const { t } = useI18n()
   
   // WebSocket for real-time updates
   const { status: wsStatus } = useWebSocket()
@@ -72,17 +75,19 @@ export default function App() {
   const commands = useMemo(() => [
     ...TABS.filter(tab => tab.key !== null).map(tab => ({
       id: tab.id,
-      label: `${tab.label}`,
+      label: t(tab.labelKey),
       shortcut: tab.key as string,
       action: () => setActiveTab(tab.id),
     })),
     // Add Costs tab without shortcut
-    { id: 'token-costs', label: 'Costs', shortcut: '', action: () => setActiveTab('token-costs') },
-  ], [])
+    { id: 'token-costs', label: t('app.commands.costs'), shortcut: '', action: () => setActiveTab('token-costs') },
+  ], [t])
 
   const handleCommandSelect = useCallback((id: string) => {
     setActiveTab(id as TabId)
   }, [])
+
+  const wsStatusLabel = t(`app.websocket.${wsStatus}`)
 
   return (
     <ThemeProvider>
@@ -124,22 +129,30 @@ export default function App() {
               color: 'var(--hud-bg-deep)',
               opacity: 0.8
             }}
-            title={wsStatus === 'connected' ? 'Live updates active' : `WebSocket: ${wsStatus}`}
+            title={wsStatus === 'connected' ? t('app.websocket.liveTitle') : t('app.websocket.title', { status: wsStatusLabel })}
           >
-            {wsStatus === 'connected' ? '● live' : wsStatus}
+            {wsStatus === 'connected' ? `● ${t('app.websocket.live')}` : wsStatusLabel}
           </span>
         </span>
         <span className="hidden sm:inline">
-          <span className="opacity-40">Ctrl+K</span> palette
+          <span className="opacity-40">Ctrl+K</span> {t('app.keyboard.palette')}
           <span className="mx-2">·</span>
-          <span className="opacity-40">1-9</span> tabs
+          <span className="opacity-40">1-9</span> {t('app.keyboard.tabs')}
           <span className="mx-2">·</span>
-          <span className="opacity-40">t</span> theme
+          <span className="opacity-40">t</span> {t('app.keyboard.theme')}
         </span>
         <span className="sm:hidden">
-          <span className="opacity-40">Ctrl+K</span> commands
+          <span className="opacity-40">Ctrl+K</span> {t('app.keyboard.commands')}
         </span>
       </div>
     </ThemeProvider>
+  )
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppShell />
+    </LanguageProvider>
   )
 }

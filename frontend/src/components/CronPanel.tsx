@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApi } from '../hooks/useApi'
 import Panel from './Panel'
 import { timeAgo, truncate } from '../lib/utils'
+import { useI18n } from '../i18n'
 
 async function cronAction(jobId: string, action: string | null, method = 'POST') {
   const url = action ? `/api/cron/${jobId}/${action}` : `/api/cron/${jobId}`
@@ -13,6 +14,7 @@ async function cronAction(jobId: string, action: string | null, method = 'POST')
 }
 
 export default function CronPanel() {
+  const { t, locale, formatDate } = useI18n()
   const { data, isLoading, mutate } = useApi('/cron', 30000)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -25,7 +27,7 @@ export default function CronPanel() {
       await cronAction(jobId, action, method)
       await mutate()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      setError(e instanceof Error ? e.message : t('chat.errors.unknown'))
     } finally {
       setBusy(null)
       setConfirming(null)
@@ -33,16 +35,16 @@ export default function CronPanel() {
   }
 
   if (isLoading && !data) {
-    return <Panel title="Cron Jobs" className="col-span-full"><div className="glow text-[13px] animate-pulse">Loading...</div></Panel>
+    return <Panel title={t('topbar.tabs.cron')} className="col-span-full"><div className="glow text-[13px] animate-pulse">{t('cron.loading')}</div></Panel>
   }
 
   const jobs = data?.jobs || data || []
   if (!Array.isArray(jobs) || jobs.length === 0) {
-    return <Panel title="Cron Jobs" className="col-span-full"><div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>No cron jobs configured</div></Panel>
+    return <Panel title={t('topbar.tabs.cron')} className="col-span-full"><div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>{t('cron.none')}</div></Panel>
   }
 
   return (
-    <Panel title="Cron Jobs" className="col-span-full">
+    <Panel title={t('topbar.tabs.cron')} className="col-span-full">
       {error && (
         <div className="mb-3 px-2 py-1.5 text-[12px]" style={{ color: 'var(--hud-error)', background: 'var(--hud-bg-surface)' }}>
           {error}
@@ -81,7 +83,7 @@ export default function CronPanel() {
                         className="px-2 py-0.5 text-[11px] cursor-pointer disabled:opacity-40"
                         style={{ background: 'var(--hud-success)', color: 'var(--hud-bg-deep)' }}
                       >
-                        {isBusy('resume') ? '...' : 'Resume'}
+                        {isBusy('resume') ? '...' : t('common.resume')}
                       </button>
                     ) : (
                       <>
@@ -91,7 +93,7 @@ export default function CronPanel() {
                           className="px-2 py-0.5 text-[11px] cursor-pointer disabled:opacity-40"
                           style={{ background: 'var(--hud-accent)', color: 'var(--hud-bg-deep)' }}
                         >
-                          {isBusy('run') ? '...' : 'Run'}
+                          {isBusy('run') ? '...' : t('common.run')}
                         </button>
                         <button
                           onClick={() => act(job.id, 'pause')}
@@ -99,7 +101,7 @@ export default function CronPanel() {
                           className="px-2 py-0.5 text-[11px] cursor-pointer disabled:opacity-40"
                           style={{ background: 'var(--hud-bg-hover)', color: 'var(--hud-text-dim)' }}
                         >
-                          {isBusy('pause') ? '...' : 'Pause'}
+                          {isBusy('pause') ? '...' : t('common.pause')}
                         </button>
                       </>
                     )
@@ -113,14 +115,14 @@ export default function CronPanel() {
                         className="px-2 py-0.5 text-[11px] cursor-pointer disabled:opacity-40"
                         style={{ background: 'var(--hud-error)', color: 'var(--hud-bg-deep)' }}
                       >
-                        {isBusy('delete') ? '...' : 'Confirm'}
+                        {isBusy('delete') ? '...' : t('common.confirm')}
                       </button>
                       <button
                         onClick={() => setConfirming(null)}
                         className="px-2 py-0.5 text-[11px] cursor-pointer"
                         style={{ background: 'var(--hud-bg-hover)', color: 'var(--hud-text-dim)' }}
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </>
                   ) : (
@@ -130,7 +132,7 @@ export default function CronPanel() {
                       className="px-2 py-0.5 text-[11px] cursor-pointer disabled:opacity-40"
                       style={{ background: 'var(--hud-bg-hover)', color: 'var(--hud-error)' }}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   )}
                 </div>
@@ -138,13 +140,13 @@ export default function CronPanel() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[13px]">
                 <div>
-                  <div className="uppercase tracking-wider" style={{ color: 'var(--hud-text-dim)', fontSize: '10px' }}>Schedule</div>
+                  <div className="uppercase tracking-wider" style={{ color: 'var(--hud-text-dim)', fontSize: '10px' }}>{t('cron.schedule')}</div>
                   <div style={{ color: 'var(--hud-primary)' }}>{job.schedule_display || job.schedule || '-'}</div>
                 </div>
                 <div>
-                  <div className="uppercase tracking-wider" style={{ color: 'var(--hud-text-dim)', fontSize: '10px' }}>Last Run</div>
+                  <div className="uppercase tracking-wider" style={{ color: 'var(--hud-text-dim)', fontSize: '10px' }}>{t('cron.lastRun')}</div>
                   <div>
-                    {timeAgo(job.last_run_at)}
+                    {timeAgo(job.last_run_at, locale)}
                     {job.last_status && (
                       <span className="ml-1" style={{ color: job.last_status === 'ok' ? 'var(--hud-success)' : 'var(--hud-error)' }}>
                         {job.last_status === 'ok' ? '✔' : '✗'}
@@ -153,19 +155,19 @@ export default function CronPanel() {
                   </div>
                 </div>
                 <div>
-                  <div className="uppercase tracking-wider" style={{ color: 'var(--hud-text-dim)', fontSize: '10px' }}>Next Run</div>
-                  <div>{job.next_run_at ? new Date(job.next_run_at).toLocaleString() : '-'}</div>
+                  <div className="uppercase tracking-wider" style={{ color: 'var(--hud-text-dim)', fontSize: '10px' }}>{t('cron.nextRun')}</div>
+                  <div>{job.next_run_at ? formatDate(job.next_run_at, { dateStyle: 'short', timeStyle: 'short' }) : '-'}</div>
                 </div>
                 <div>
-                  <div className="uppercase tracking-wider" style={{ color: 'var(--hud-text-dim)', fontSize: '10px' }}>Deliver</div>
+                  <div className="uppercase tracking-wider" style={{ color: 'var(--hud-text-dim)', fontSize: '10px' }}>{t('cron.deliver')}</div>
                   <div style={{ color: 'var(--hud-accent)' }}>{job.deliver || '-'}</div>
                 </div>
               </div>
 
               {job.repeat_completed != null && (
                 <div className="mt-2 text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>
-                  Runs completed: {job.repeat_completed}{job.repeat_total ? ` / ${job.repeat_total}` : ''}
-                  {job.skills?.length > 0 && <span className="ml-2">Skills: {job.skills.join(', ')}</span>}
+                  {t('cron.runsCompleted')} {job.repeat_completed}{job.repeat_total ? ` / ${job.repeat_total}` : ''}
+                  {job.skills?.length > 0 && <span className="ml-2">{t('cron.skills')} {job.skills.join(', ')}</span>}
                 </div>
               )}
 
@@ -177,7 +179,7 @@ export default function CronPanel() {
 
               {job.paused_reason && (
                 <div className="mt-1 text-[12px]" style={{ color: 'var(--hud-warning)' }}>
-                  Paused: {job.paused_reason}
+                  {t('cron.paused')} {job.paused_reason}
                 </div>
               )}
             </div>

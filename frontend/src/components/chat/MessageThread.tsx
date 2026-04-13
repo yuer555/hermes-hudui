@@ -3,12 +3,14 @@ import type { ChatMessage } from '../../hooks/useChat'
 import MessageBubble from './MessageBubble'
 import ToolCallCard from './ToolCallCard'
 import ReasoningBlock from './ReasoningBlock'
+import { useI18n } from '../../i18n'
 
 interface MessageThreadProps {
   messages: ChatMessage[]
 }
 
 export default function MessageThread({ messages }: MessageThreadProps) {
+  const { t } = useI18n()
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom on new messages
@@ -21,8 +23,8 @@ export default function MessageThread({ messages }: MessageThreadProps) {
       {messages.length === 0 ? (
         <div className="h-full flex items-center justify-center">
           <div className="text-center" style={{ color: 'var(--hud-text-dim)' }}>
-            <div className="text-[14px] mb-1">No messages yet</div>
-            <div className="text-[12px]">Start a conversation below</div>
+            <div className="text-[14px] mb-1">{t('chat.messages.none')}</div>
+            <div className="text-[12px]">{t('chat.messages.startBelow')}</div>
           </div>
         </div>
       ) : (

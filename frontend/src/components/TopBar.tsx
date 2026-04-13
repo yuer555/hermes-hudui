@@ -1,23 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTheme, THEMES } from '../hooks/useTheme'
-
-export const TABS = [
-  { id: 'dashboard', label: 'Dashboard', key: '1' },
-  { id: 'memory', label: 'Memory', key: '2' },
-  { id: 'skills', label: 'Skills', key: '3' },
-  { id: 'sessions', label: 'Sessions', key: '4' },
-  { id: 'cron', label: 'Cron', key: '5' },
-  { id: 'projects', label: 'Projects', key: '6' },
-  { id: 'health', label: 'Health', key: '7' },
-  { id: 'agents', label: 'Agents', key: '8' },
-  { id: 'chat', label: 'Chat', key: '9' },
-  { id: 'profiles', label: 'Profiles', key: '0' },
-  { id: 'token-costs', label: 'Costs', key: null },  // Click only, no hotkey
-  { id: 'corrections', label: 'Corrections', key: null },
-  { id: 'patterns', label: 'Patterns', key: null },
-] as const
-
-export type TabId = typeof TABS[number]['id']
+import { useI18n } from '../i18n'
+import { TABS, type TabId } from '../constants/tabs'
 
 interface TopBarProps {
   activeTab: TabId
@@ -26,6 +10,7 @@ interface TopBarProps {
 
 export default function TopBar({ activeTab, onTabChange }: TopBarProps) {
   const { theme, setTheme, scanlines, setScanlines } = useTheme()
+  const { locale, setLocale, t, formatTime } = useI18n()
   const [showThemePicker, setShowThemePicker] = useState(false)
   const [time, setTime] = useState(new Date())
 
@@ -87,9 +72,36 @@ export default function TopBar({ activeTab, onTabChange }: TopBarProps) {
             }}
           >
             {tab.key && <span className="opacity-40 mr-1">{tab.key}</span>}
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0 ml-2" aria-label={t('topbar.language.label')}>
+        <button
+          type="button"
+          onClick={() => setLocale('zh-CN')}
+          className="px-2 py-1 text-[11px] cursor-pointer"
+          style={{
+            background: locale === 'zh-CN' ? 'var(--hud-primary)' : 'transparent',
+            color: locale === 'zh-CN' ? 'var(--hud-bg-deep)' : 'var(--hud-text-dim)',
+            border: '1px solid var(--hud-border)',
+          }}
+        >
+          {t('topbar.language.zhCN')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setLocale('en-US')}
+          className="px-2 py-1 text-[11px] cursor-pointer"
+          style={{
+            background: locale === 'en-US' ? 'var(--hud-primary)' : 'transparent',
+            color: locale === 'en-US' ? 'var(--hud-bg-deep)' : 'var(--hud-text-dim)',
+            border: '1px solid var(--hud-border)',
+          }}
+        >
+          {t('topbar.language.english')}
+        </button>
       </div>
 
       {/* Theme picker */}
@@ -98,7 +110,7 @@ export default function TopBar({ activeTab, onTabChange }: TopBarProps) {
           onClick={() => setShowThemePicker(p => !p)}
           className="px-2 py-1.5 text-[13px] tracking-wider uppercase cursor-pointer"
           style={{ color: 'var(--hud-text-dim)', minHeight: '32px' }}
-          title="Theme (t)"
+          title={t('topbar.themeButtonTitle')}
         >
           ◆
         </button>
@@ -125,7 +137,7 @@ export default function TopBar({ activeTab, onTabChange }: TopBarProps) {
               className="block w-full text-left px-3 py-2 text-[13px] cursor-pointer"
               style={{ color: 'var(--hud-text-dim)', minHeight: '36px' }}
             >
-              {scanlines ? '▣' : '□'} Scanlines
+              {scanlines ? '▣' : '□'} {t('topbar.scanlines')}
             </button>
           </div>
         )}
@@ -133,7 +145,7 @@ export default function TopBar({ activeTab, onTabChange }: TopBarProps) {
 
       {/* Clock */}
       <span className="text-[13px] ml-2 tabular-nums shrink-0 hidden sm:inline" style={{ color: 'var(--hud-text-dim)' }}>
-        {time.toLocaleTimeString('en-US', { hour12: false })}
+        {formatTime(time, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
       </span>
     </div>
   )

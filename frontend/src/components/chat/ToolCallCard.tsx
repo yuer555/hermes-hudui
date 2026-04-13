@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { ToolCall } from '../../hooks/useChat'
+import { useI18n } from '../../i18n'
 
 interface ToolCallCardProps {
   tool: ToolCall
 }
 
 export default function ToolCallCard({ tool }: ToolCallCardProps) {
+  const { t } = useI18n()
   const [expanded, setExpanded] = useState(false)
 
   const isRunning = tool.status === 'running'
@@ -36,7 +38,7 @@ export default function ToolCallCard({ tool }: ToolCallCardProps) {
           <span className="font-bold">{tool.name}</span>
           {isRunning && (
             <span className="animate-pulse" style={{ color: 'var(--hud-warning)' }}>
-              running...
+              {t('chat.tool.running')}
             </span>
           )}
         </div>
@@ -49,7 +51,7 @@ export default function ToolCallCard({ tool }: ToolCallCardProps) {
           {/* Arguments */}
           <div>
             <div style={{ color: 'var(--hud-text-dim)' }} className="mb-0.5">
-              arguments:
+              {t('chat.tool.arguments')}
             </div>
             <pre
               className="p-1.5 overflow-x-auto text-[11px]"
@@ -72,7 +74,7 @@ export default function ToolCallCard({ tool }: ToolCallCardProps) {
                 }}
                 className="mb-0.5"
               >
-                {tool.error ? 'error:' : 'result:'}
+                {tool.error ? t('chat.tool.error') : t('chat.tool.result')}
               </div>
               <pre
                 className="p-1.5 overflow-x-auto text-[11px]"

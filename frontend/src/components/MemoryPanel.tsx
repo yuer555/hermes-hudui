@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useApi } from '../hooks/useApi'
 import Panel, { CapacityBar } from './Panel'
+import { useI18n } from '../i18n'
 
-async function memoryApi(method: string, body: Record<string, string>) {
+async function memoryApi(method: string, body: Record<string, string>, fallbackError: string) {
   const res = await fetch('/api/memory', {
     method,
     headers: { 'Content-Type': 'application/json' },
@@ -10,7 +11,7 @@ async function memoryApi(method: string, body: Record<string, string>) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(err.detail || 'Request failed')
+    throw new Error(err.detail || fallbackError)
   }
   return res.json()
 }
@@ -24,6 +25,7 @@ function MemoryEntry({
   target: string
   onMutate: () => void
 }) {
+  const { t } = useI18n()
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState('')
   const [confirming, setConfirming] = useState(false)
@@ -50,7 +52,7 @@ function MemoryEntry({
     setBusy(true)
     setError('')
     try {
-      await memoryApi('PUT', { target, old_text: entry.text, content: trimmed })
+      await memoryApi('PUT', { target, old_text: entry.text, content: trimmed }, t('memory.requestFailed'))
       setEditing(false)
       onMutate()
     } catch (e: any) {
@@ -68,7 +70,7 @@ function MemoryEntry({
     setBusy(true)
     setError('')
     try {
-      await memoryApi('DELETE', { target, old_text: entry.text })
+      await memoryApi('DELETE', { target, old_text: entry.text }, t('memory.requestFailed'))
       onMutate()
     } catch (e: any) {
       setError(e.message)
@@ -96,7 +98,7 @@ function MemoryEntry({
                 style={{ color: 'var(--hud-primary)' }}
                 disabled={busy}
               >
-                edit
+                {t('memory.editShort')}
               </button>
               <button
                 onClick={deleteEntry}
@@ -105,7 +107,7 @@ function MemoryEntry({
                 style={{ color: 'var(--hud-error, #f44)' }}
                 disabled={busy}
               >
-                {confirming ? 'confirm?' : 'del'}
+                {confirming ? t('memory.confirmShort') : t('memory.deleteShort')}
               </button>
             </span>
           )}
@@ -134,7 +136,7 @@ function MemoryEntry({
               className="text-[11px] px-2 py-0.5 cursor-pointer"
               style={{ background: 'var(--hud-primary)', color: 'var(--hud-bg-deep)', border: 'none' }}
             >
-              {busy ? 'Saving...' : 'Save'}
+              {busy ? t('common.saving') : t('common.save')}
             </button>
             <button
               onClick={cancelEdit}
@@ -142,7 +144,7 @@ function MemoryEntry({
               className="text-[11px] px-2 py-0.5 cursor-pointer"
               style={{ background: 'var(--hud-bg-hover)', color: 'var(--hud-text-dim)', border: '1px solid var(--hud-border)' }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
           {error && <div className="text-[11px] mt-1" style={{ color: 'var(--hud-error, #f44)' }}>{error}</div>}
@@ -155,6 +157,7 @@ function MemoryEntry({
 }
 
 function AddEntryForm({ target, onMutate }: { target: string; onMutate: () => void }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -166,7 +169,7 @@ function AddEntryForm({ target, onMutate }: { target: string; onMutate: () => vo
     setBusy(true)
     setError('')
     try {
-      await memoryApi('POST', { target, content: trimmed })
+      await memoryApi('POST', { target, content: trimmed }, t('memory.requestFailed'))
       setText('')
       setOpen(false)
       onMutate()
@@ -184,7 +187,7 @@ function AddEntryForm({ target, onMutate }: { target: string; onMutate: () => vo
         className="w-full text-[11px] py-1 mt-1 cursor-pointer"
         style={{ color: 'var(--hud-text-dim)', border: '1px dashed var(--hud-border)', background: 'transparent' }}
       >
-        + Add entry
+        {t('memory.addEntry')}
       </button>
     )
   }
@@ -194,7 +197,7 @@ function AddEntryForm({ target, onMutate }: { target: string; onMutate: () => vo
       <textarea
         value={text}
         onChange={e => setText(e.target.value)}
-        placeholder="New memory entry..."
+        placeholder={t('memory.newEntryPlaceholder')}
         className="w-full text-[13px] p-1.5 outline-none resize-y"
         style={{
           background: 'var(--hud-bg-deep)',
@@ -211,14 +214,14 @@ function AddEntryForm({ target, onMutate }: { target: string; onMutate: () => vo
           className="text-[11px] px-2 py-0.5 cursor-pointer disabled:opacity-40"
           style={{ background: 'var(--hud-primary)', color: 'var(--hud-bg-deep)', border: 'none' }}
         >
-          {busy ? 'Adding...' : 'Add'}
+          {busy ? t('common.adding') : t('common.add')}
         </button>
         <button
           onClick={() => { setOpen(false); setText(''); setError('') }}
           className="text-[11px] px-2 py-0.5 cursor-pointer"
           style={{ background: 'var(--hud-bg-hover)', color: 'var(--hud-text-dim)', border: '1px solid var(--hud-border)' }}
         >
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
       {error && <div className="text-[11px] mt-1" style={{ color: 'var(--hud-error, #f44)' }}>{error}</div>}
@@ -227,7 +230,9 @@ function AddEntryForm({ target, onMutate }: { target: string; onMutate: () => vo
 }
 
 function MemoryEntries({ entries, target, onMutate }: { entries: any[]; target: string; onMutate: () => void }) {
-  if (!entries?.length) return <div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>No entries</div>
+  const { t } = useI18n()
+
+  if (!entries?.length) return <div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>{t('memory.noEntries')}</div>
 
   return (
     <div className="space-y-1.5">
@@ -239,29 +244,30 @@ function MemoryEntries({ entries, target, onMutate }: { entries: any[]; target: 
 }
 
 export default function MemoryPanel() {
+  const { t } = useI18n()
   const { data, isLoading, mutate } = useApi('/memory', 30000)
 
   if (isLoading && !data) {
-    return <Panel title="Memory" className="col-span-full"><div className="glow text-[13px] animate-pulse">Loading...</div></Panel>
+    return <Panel title={t('topbar.tabs.memory')} className="col-span-full"><div className="glow text-[13px] animate-pulse">{t('common.loading')}</div></Panel>
   }
 
   const { memory, user } = data
 
   return (
     <>
-      <Panel title="Agent Memory" className="col-span-1">
-        <CapacityBar value={memory?.total_chars || 0} max={memory?.max_chars || 2200} label="CAPACITY" />
+      <Panel title={t('memory.agentMemory')} className="col-span-1">
+        <CapacityBar value={memory?.total_chars || 0} max={memory?.max_chars || 2200} label={t('topbar.tabs.memory')} />
         <div className="text-[13px] my-2" style={{ color: 'var(--hud-text-dim)' }}>
-          {memory?.entry_count || 0} entries · {Object.entries(memory?.count_by_category || {}).map(([k,v]) => `${k}(${v})`).join(' ')}
+          {memory?.entry_count || 0} {t('memory.entries')} · {Object.entries(memory?.count_by_category || {}).map(([k,v]) => `${k}(${v})`).join(' ')}
         </div>
         <MemoryEntries entries={memory?.entries || []} target="memory" onMutate={mutate} />
         <AddEntryForm target="memory" onMutate={mutate} />
       </Panel>
 
-      <Panel title="User Profile" className="col-span-1">
-        <CapacityBar value={user?.total_chars || 0} max={user?.max_chars || 1375} label="CAPACITY" />
+      <Panel title={t('memory.userProfile')} className="col-span-1">
+        <CapacityBar value={user?.total_chars || 0} max={user?.max_chars || 1375} label={t('topbar.tabs.profiles')} />
         <div className="text-[13px] my-2" style={{ color: 'var(--hud-text-dim)' }}>
-          {user?.entry_count || 0} entries
+          {user?.entry_count || 0} {t('memory.entries')}
         </div>
         <MemoryEntries entries={user?.entries || []} target="user" onMutate={mutate} />
         <AddEntryForm target="user" onMutate={mutate} />

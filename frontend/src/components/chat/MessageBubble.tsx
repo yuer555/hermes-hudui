@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/atom-one-dark.css'
+import { useI18n } from '../../i18n'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant' | 'system' | 'tool'
@@ -11,6 +12,7 @@ interface MessageBubbleProps {
 }
 
 function CopyButton({ text }: { text: string }) {
+  const { t } = useI18n()
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -41,7 +43,7 @@ function CopyButton({ text }: { text: string }) {
         border: '1px solid var(--hud-border)',
       }}
     >
-      {copied ? 'Copied!' : 'Copy'}
+      {copied ? t('common.copied') : t('common.copy')}
     </button>
   )
 }

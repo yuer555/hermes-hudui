@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useI18n } from '../i18n'
 
 export interface ToolCall {
   id: string
@@ -82,6 +83,7 @@ interface StreamingEvent {
 }
 
 export function useChat(sessionId: string | null) {
+  const { t } = useI18n()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [composerState, setComposerState] = useState<ComposerState>({
@@ -155,7 +157,7 @@ export function useChat(sessionId: string | null) {
 
   const sendMessage = useCallback(async (content: string) => {
     if (!sessionId) {
-      setError('No active session')
+      setError(t('chat.errors.noActiveSession'))
       return
     }
 
@@ -199,7 +201,7 @@ export function useChat(sessionId: string | null) {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to send message')
+        throw new Error(errorData.detail || t('chat.errors.failedToSendMessage'))
       }
 
       // Then open SSE stream
@@ -226,7 +228,7 @@ export function useChat(sessionId: string | null) {
             }
             break
 
-          case 'tool_start':
+          case 'tool_start': {
             const toolId = data.data.id as string
             const toolName = data.data.name as string
             const toolArgs = data.data.arguments as Record<string, unknown>
@@ -238,8 +240,9 @@ export function useChat(sessionId: string | null) {
             }
             updateAssistantToolCalls(assistantMessageId)
             break
+          }
 
-          case 'tool_end':
+          case 'tool_end': {
             const endToolId = data.data.id as string
             const toolResult = data.data.result
             const toolError = data.data.error as string | undefined
@@ -250,8 +253,9 @@ export function useChat(sessionId: string | null) {
             }
             updateAssistantToolCalls(assistantMessageId)
             break
+          }
 
-          case 'reasoning':
+          case 'reasoning': {
             const reasoningContent = data.data.content as string
             setMessages(prev =>
               prev.map(msg =>
@@ -261,6 +265,7 @@ export function useChat(sessionId: string | null) {
               )
             )
             break
+          }
 
           case 'info':
             // TMUX mode info message
@@ -287,7 +292,7 @@ export function useChat(sessionId: string | null) {
             setMessages(prev =>
               prev.map(msg =>
                 msg.id === assistantMessageId
-                  ? { ...msg, isStreaming: false, content: msg.content || 'Error: ' + data.data.message }
+                  ? { ...msg, isStreaming: false, content: msg.content || `${t('chat.errorPrefix')} ${data.data.message}` }
                   : msg
               )
             )
@@ -302,7 +307,7 @@ export function useChat(sessionId: string | null) {
         setMessages(prev =>
           prev.map(msg =>
             msg.id === assistantMessageId
-              ? { ...msg, isStreaming: false, content: msg.content || '[connection lost]' }
+              ? { ...msg, isStreaming: false, content: msg.content || t('chat.message.connectionLost') }
               : msg
           )
         )
@@ -310,17 +315,17 @@ export function useChat(sessionId: string | null) {
       }
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('chat.errors.unknown'))
       setIsStreaming(false)
       setMessages(prev =>
         prev.map(msg =>
           msg.id === assistantMessageId
-            ? { ...msg, isStreaming: false, content: msg.content || 'Error sending message' }
+            ? { ...msg, isStreaming: false, content: msg.content || t('chat.errors.errorSendingMessage') }
             : msg
         )
       )
     }
-  }, [sessionId])
+  }, [sessionId, t])
 
   const updateAssistantToolCalls = (assistantMessageId: string) => {
     const toolCalls = Object.values(currentToolCallsRef.current)
@@ -348,7 +353,7 @@ export function useChat(sessionId: string | null) {
     setMessages(prev =>
       prev.map((msg, i) =>
         i === prev.length - 1 && msg.role === 'assistant' && msg.isStreaming
-          ? { ...msg, isStreaming: false, content: msg.content || '[cancelled]' }
+          ? { ...msg, isStreaming: false, content: msg.content || t('chat.message.cancelled') }
           : msg
       )
     )
@@ -359,7 +364,7 @@ export function useChat(sessionId: string | null) {
     } catch {
       // Best-effort — SSE already closed on frontend
     }
-  }, [sessionId])
+  }, [sessionId, t])
 
   const loadComposerState = useCallback(async () => {
     if (!sessionId) return

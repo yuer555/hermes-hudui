@@ -4,8 +4,10 @@ import { useChat, useChatAvailability, useChatSessions, loadSavedSessions, loadM
 import SessionSidebar from './chat/SessionSidebar'
 import MessageThread from './chat/MessageThread'
 import Composer from './chat/Composer'
+import { useI18n } from '../i18n'
 
 export default function ChatPanel() {
+  const { t } = useI18n()
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const { available: chatAvailable, loading: checkingAvailability } = useChatAvailability()
   const { sessions, loading: loadingSessions, createSession, refresh: refreshSessions } = useChatSessions()
@@ -83,10 +85,10 @@ export default function ChatPanel() {
   // Show loading while checking availability
   if (checkingAvailability) {
     return (
-      <Panel title="Chat" className="col-span-full h-full">
+      <Panel title={t('chat.panelTitle')} className="col-span-full h-full">
         <div className="h-full flex items-center justify-center">
           <div className="text-[13px] animate-pulse" style={{ color: 'var(--hud-text-dim)' }}>
-            Checking chat availability...
+            {t('chat.checkingAvailability')}
           </div>
         </div>
       </Panel>
@@ -96,17 +98,17 @@ export default function ChatPanel() {
   // Show unavailable state
   if (!chatAvailable) {
     return (
-      <Panel title="Chat" className="col-span-full h-full">
+      <Panel title={t('chat.panelTitle')} className="col-span-full h-full">
         <div className="h-full flex items-center justify-center p-4">
           <div className="text-center max-w-md">
             <div className="text-[14px] mb-2" style={{ color: 'var(--hud-error)' }}>
-              Chat Not Available
+              {t('chat.notAvailable')}
             </div>
             <div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>
-              To enable chat, either:
+              {t('chat.enableChatIntro')}
               <ul className="mt-2 space-y-1 text-left">
-                <li>• Install hermes-agent: <code className="text-[var(--hud-primary)]">pip install hermes-agent</code></li>
-                <li>• Or start Hermes in a tmux session: <code className="text-[var(--hud-primary)]">tmux new -s hermes</code></li>
+                <li>• {t('chat.installAgent')} <code className="text-[var(--hud-primary)]">pip install hermes-agent</code></li>
+                <li>• {t('chat.startTmux')} <code className="text-[var(--hud-primary)]">tmux new -s hermes</code></li>
               </ul>
             </div>
           </div>
@@ -118,17 +120,17 @@ export default function ChatPanel() {
   // Show error state
   if (error) {
     return (
-      <Panel title="Chat" className="col-span-full h-full">
+      <Panel title={t('chat.panelTitle')} className="col-span-full h-full">
         <div className="h-full flex flex-col">
           <div className="p-2 text-[12px]" style={{ color: 'var(--hud-error)', background: 'var(--hud-bg-surface)' }}>
-            Error: {error}
+            {t('chat.errorPrefix')} {error}
           </div>
           <button
             onClick={refreshSessions}
             className="m-2 px-3 py-1.5 text-[12px] cursor-pointer"
             style={{ background: 'var(--hud-primary)', color: 'var(--hud-bg-deep)' }}
           >
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       </Panel>
@@ -136,7 +138,7 @@ export default function ChatPanel() {
   }
 
   return (
-    <Panel title="Chat" className="h-full" noPadding>
+    <Panel title={t('chat.panelTitle')} className="h-full" noPadding>
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <div className="w-48 shrink-0 overflow-hidden">
@@ -164,8 +166,8 @@ export default function ChatPanel() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center" style={{ color: 'var(--hud-text-dim)' }}>
-                <div className="text-[14px] mb-1">Select or create a session</div>
-                <div className="text-[12px]">Choose from the sidebar to start chatting</div>
+                <div className="text-[14px] mb-1">{t('chat.empty.selectSession')}</div>
+                <div className="text-[12px]">{t('chat.empty.chooseSidebar')}</div>
               </div>
             </div>
           )}

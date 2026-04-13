@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useI18n } from '../i18n'
 
 interface PanelProps {
   title: string
@@ -19,6 +20,7 @@ export default function Panel({ title, children, className = '', noPadding = fal
 }
 
 export function CapacityBar({ value, max, label }: { value: number; max: number; label: string }) {
+  const { formatNumber } = useI18n()
   const pct = max > 0 ? (value / max) * 100 : 0
   const level = pct > 90 ? 'critical' : pct > 70 ? 'warn' : 'ok'
   return (
@@ -26,8 +28,8 @@ export function CapacityBar({ value, max, label }: { value: number; max: number;
       <div className="flex justify-between text-[13px] mb-1">
         <span style={{ color: 'var(--hud-text-dim)' }}>{label}</span>
         <span>
-          <span style={{ color: 'var(--hud-primary)' }}>{value.toLocaleString()}</span>
-          <span style={{ color: 'var(--hud-text-dim)' }}>/{max.toLocaleString()} ({pct.toFixed(0)}%)</span>
+          <span style={{ color: 'var(--hud-primary)' }}>{formatNumber(value)}</span>
+          <span style={{ color: 'var(--hud-text-dim)' }}>/{formatNumber(max)} ({pct.toFixed(0)}%)</span>
         </span>
       </div>
       <div className="capacity-bar">

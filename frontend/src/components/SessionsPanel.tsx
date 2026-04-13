@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useApi } from '../hooks/useApi'
 import Panel, { Sparkline } from './Panel'
 import MessageBubble from './chat/MessageBubble'
+import { useI18n } from '../i18n'
 
 function sourceColor(source: string) {
   return source === 'telegram' ? 'var(--hud-accent)' : 'var(--hud-primary)'
@@ -13,6 +14,7 @@ const hoverOff = (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.s
 // ── Transcript viewer ──────────────────────────────────────────────────────────
 
 function TranscriptViewer({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+  const { t, formatNumber } = useI18n()
   const { data, isLoading } = useApi(`/sessions/${sessionId}/messages`, 0)
 
   return (
@@ -46,7 +48,7 @@ function TranscriptViewer({ sessionId, onClose }: { sessionId: string; onClose: 
             className="text-[13px] px-2 py-0.5 cursor-pointer"
             style={{ color: 'var(--hud-text-dim)' }}
           >
-            ✕ Close
+            ✕ {t('sessions.close')}
           </button>
         </div>
 
@@ -54,12 +56,12 @@ function TranscriptViewer({ sessionId, onClose }: { sessionId: string; onClose: 
         <div className="flex-1 overflow-y-auto px-4 py-3">
           {isLoading && (
             <div className="text-[13px] animate-pulse" style={{ color: 'var(--hud-text-dim)' }}>
-              Loading transcript...
+              {t('sessions.transcriptLoading')}
             </div>
           )}
           {!isLoading && data?.messages?.length === 0 && (
             <div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>
-              No messages found.
+              {t('sessions.noMessagesFound')}
             </div>
           )}
           {!isLoading && data?.messages?.map((msg: any) => (
@@ -67,7 +69,7 @@ function TranscriptViewer({ sessionId, onClose }: { sessionId: string; onClose: 
               <MessageBubble role={msg.role} content={msg.content} />
               {msg.token_count > 0 && (
                 <div className="text-[10px] mb-1 text-right" style={{ color: 'var(--hud-text-dim)', marginTop: '-8px' }}>
-                  {msg.token_count.toLocaleString()} tokens
+                  {t('sessions.tokensCount', { count: formatNumber(msg.token_count) })}
                 </div>
               )}
             </div>
@@ -81,16 +83,17 @@ function TranscriptViewer({ sessionId, onClose }: { sessionId: string; onClose: 
 // ── Search results ─────────────────────────────────────────────────────────────
 
 function SearchResults({ query, onSelect }: { query: string; onSelect: (id: string) => void }) {
+  const { t } = useI18n()
   const { data, isLoading } = useApi(`/sessions/search?q=${encodeURIComponent(query)}`, 0)
 
   if (isLoading) {
-    return <div className="text-[13px] animate-pulse py-2" style={{ color: 'var(--hud-text-dim)' }}>Searching...</div>
+    return <div className="text-[13px] animate-pulse py-2" style={{ color: 'var(--hud-text-dim)' }}>{t('common.searching')}</div>
   }
 
   const results = data || []
 
   if (!results.length) {
-    return <div className="text-[13px] py-2" style={{ color: 'var(--hud-text-dim)' }}>No results for "{query}"</div>
+    return <div className="text-[13px] py-2" style={{ color: 'var(--hud-text-dim)' }}>{t('sessions.searchNoResults', { query })}</div>
   }
 
   return (
@@ -114,7 +117,7 @@ function SearchResults({ query, onSelect }: { query: string; onSelect: (id: stri
             />
             <span className="flex-1 truncate">{r.title}</span>
             <span className="text-[11px] shrink-0" style={{ color: 'var(--hud-text-dim)' }}>
-              {r.match_type === 'content' ? 'content' : 'title'}
+              {r.match_type === 'content' ? t('sessions.matchContent') : t('sessions.matchTitle')}
             </span>
           </div>
           {r.snippet && (
@@ -131,6 +134,7 @@ function SearchResults({ query, onSelect }: { query: string; onSelect: (id: stri
 // ── Main panel ─────────────────────────────────────────────────────────────────
 
 export default function SessionsPanel() {
+  const { t, formatNumber } = useI18n()
   const { data, isLoading } = useApi('/sessions', 30000)
   const [activeTranscript, setActiveTranscript] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -147,7 +151,7 @@ export default function SessionsPanel() {
   }, [])
 
   if (isLoading && !data) {
-    return <Panel title="Sessions" className="col-span-full"><div className="glow text-[13px] animate-pulse">Loading...</div></Panel>
+    return <Panel title={t('sessions.panelTitle')} className="col-span-full"><div className="glow text-[13px] animate-pulse">{t('sessions.loading')}</div></Panel>
   }
 
   const sessions = data.sessions || []
@@ -168,19 +172,19 @@ export default function SessionsPanel() {
         />
       )}
 
-      <Panel title="Session Activity" className="col-span-2">
+      <Panel title={t('sessions.activityTitle')} className="col-span-2">
         <div className="flex gap-6 mb-3 text-[13px]">
           <div>
             <span className="stat-value text-base">{data.total_sessions || 0}</span>
-            <span className="stat-label ml-1">sessions</span>
+            <span className="stat-label ml-1">{t('sessions.sessionsLabel')}</span>
           </div>
           <div>
-            <span className="stat-value text-base">{(data.total_messages || 0).toLocaleString()}</span>
-            <span className="stat-label ml-1">messages</span>
+            <span className="stat-value text-base">{formatNumber(data.total_messages || 0)}</span>
+            <span className="stat-label ml-1">{t('sessions.messagesLabel')}</span>
           </div>
           <div>
-            <span className="stat-value text-base">{(data.total_tokens || 0).toLocaleString()}</span>
-            <span className="stat-label ml-1">tokens</span>
+            <span className="stat-value text-base">{formatNumber(data.total_tokens || 0)}</span>
+            <span className="stat-label ml-1">{t('sessions.tokensLabel')}</span>
           </div>
           {Object.entries(bySource).map(([src, count]: any) => (
             <div key={src}>
@@ -190,23 +194,23 @@ export default function SessionsPanel() {
           ))}
         </div>
         <div className="mb-2">
-          <div className="text-[13px] uppercase tracking-wider mb-1" style={{ color: 'var(--hud-text-dim)' }}>Messages/day</div>
+          <div className="text-[13px] uppercase tracking-wider mb-1" style={{ color: 'var(--hud-text-dim)' }}>{t('sessions.messagesPerDay')}</div>
           <Sparkline values={dailyMessages} width={500} height={50} />
         </div>
         <div>
-          <div className="text-[13px] uppercase tracking-wider mb-1" style={{ color: 'var(--hud-text-dim)' }}>Sessions/day</div>
+          <div className="text-[13px] uppercase tracking-wider mb-1" style={{ color: 'var(--hud-text-dim)' }}>{t('sessions.sessionsPerDay')}</div>
           <Sparkline values={dailySessions} width={500} height={30} />
         </div>
       </Panel>
 
-      <Panel title="Recent Sessions">
+      <Panel title={t('sessions.recentTitle')}>
         {/* Search bar */}
         <form onSubmit={handleSearch} className="flex gap-1 mb-2">
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search sessions..."
+            placeholder={t('sessions.searchPlaceholder')}
             className="flex-1 px-2 py-1 text-[13px] outline-none"
             style={{
               background: 'var(--hud-bg-deep)',
@@ -230,7 +234,7 @@ export default function SessionsPanel() {
               className="px-2 py-1 text-[12px] cursor-pointer disabled:opacity-40"
               style={{ background: 'var(--hud-primary)', color: 'var(--hud-bg-deep)', border: 'none' }}
             >
-              Search
+              {t('common.search')}
             </button>
           )}
         </form>
@@ -248,7 +252,7 @@ export default function SessionsPanel() {
                 style={{ borderBottom: '1px solid var(--hud-border)', background: 'transparent' }}
                 onMouseEnter={hoverOn}
                 onMouseLeave={hoverOff}
-                title="Click to read transcript"
+                title={t('sessions.clickToReadTranscript')}
               >
                 <span className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{ background: sourceColor(s.source) }} />

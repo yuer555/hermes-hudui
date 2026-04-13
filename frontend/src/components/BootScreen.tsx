@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useI18n } from '../i18n'
 
 const HERMES_ASCII = [
   ' ██╗  ██╗███████╗██████╗ ███╗   ███╗███████╗███████╗',
@@ -9,38 +10,39 @@ const HERMES_ASCII = [
   ' ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝',
 ]
 
-const BOOT_LINES = [
-  '☤ HERMES HUD v0.3.1',
-  '',
-  'Initializing consciousness monitor...',
-  'Reading ~/.hermes/state.db',
-  'Scanning memory banks',
-  'Indexing skill library',
-  'Checking service health',
-  'Profiling agent processes',
-  '',
-  '"I think, therefore I process."',
-  '',
-  'Systems ready.',
-]
-
 interface BootScreenProps {
   onComplete: () => void
 }
 
 export default function BootScreen({ onComplete }: BootScreenProps) {
+  const { t } = useI18n()
   const [visibleLines, setVisibleLines] = useState(0)
   const [asciiVisible, setAsciiVisible] = useState(false)
   const [fadeOut, setFadeOut] = useState(false)
   const [skipped, setSkipped] = useState(false)
 
+  const bootLines = useMemo(() => [
+    { text: '☤ HERMES HUD v0.3.1', tone: 'primary' },
+    { text: '', tone: 'default' },
+    { text: t('boot.initializingMonitor'), tone: 'default' },
+    { text: t('boot.readStateDb'), tone: 'default' },
+    { text: t('boot.scanningMemoryBanks'), tone: 'default' },
+    { text: t('boot.indexingSkillLibrary'), tone: 'default' },
+    { text: t('boot.checkingServiceHealth'), tone: 'default' },
+    { text: t('boot.profilingAgentProcesses'), tone: 'default' },
+    { text: '', tone: 'default' },
+    { text: t('boot.quote'), tone: 'accent' },
+    { text: '', tone: 'default' },
+    { text: t('boot.ready'), tone: 'success' },
+  ], [t])
+
   useEffect(() => {
     const asciiTimer = setTimeout(() => setAsciiVisible(true), 200)
-    const lineTimers = BOOT_LINES.map((_, i) =>
+    const lineTimers = bootLines.map((_, i) =>
       setTimeout(() => setVisibleLines(i + 1), 600 + i * 100)
     )
-    const fadeTimer = setTimeout(() => setFadeOut(true), 600 + BOOT_LINES.length * 100 + 400)
-    const completeTimer = setTimeout(onComplete, 600 + BOOT_LINES.length * 100 + 800)
+    const fadeTimer = setTimeout(() => setFadeOut(true), 600 + bootLines.length * 100 + 400)
+    const completeTimer = setTimeout(onComplete, 600 + bootLines.length * 100 + 800)
 
     return () => {
       clearTimeout(asciiTimer)
@@ -48,7 +50,7 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
       clearTimeout(fadeTimer)
       clearTimeout(completeTimer)
     }
-  }, [onComplete])
+  }, [bootLines, onComplete])
 
   const handleSkip = () => {
     if (!skipped) {
@@ -80,15 +82,15 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
 
       {/* Boot text */}
       <div className="text-[13px] w-[90vw] max-w-[400px] px-4">
-        {BOOT_LINES.slice(0, visibleLines).map((line, i) => (
+        {bootLines.slice(0, visibleLines).map((line, i) => (
           <div key={i} className="py-0.5" style={{
-            color: line.startsWith('"') ? 'var(--hud-accent)' :
-                   line.startsWith('☤') ? 'var(--hud-primary)' :
-                   line === 'Systems ready.' ? 'var(--hud-success)' :
+            color: line.tone === 'accent' ? 'var(--hud-accent)' :
+                   line.tone === 'primary' ? 'var(--hud-primary)' :
+                   line.tone === 'success' ? 'var(--hud-success)' :
                    'var(--hud-text-dim)',
-            fontStyle: line.startsWith('"') ? 'italic' : 'normal',
+            fontStyle: line.tone === 'accent' ? 'italic' : 'normal',
           }}>
-            {line}
+            {line.text}
             {i === visibleLines - 1 && (
               <span className="animate-pulse" style={{ color: 'var(--hud-primary)' }}>█</span>
             )}
@@ -97,7 +99,7 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
       </div>
 
       <div className="absolute bottom-6 text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>
-        tap to skip
+        {t('boot.tapToSkip')}
       </div>
     </div>
   )

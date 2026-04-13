@@ -25,7 +25,7 @@ export function useWebSocket(): UseWebSocketReturn {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectAttemptsRef = useRef(0)
 
-  const connect = useCallback(() => {
+  const connect = useCallback(function connectWebSocket() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
     setStatus('connecting')
@@ -107,7 +107,7 @@ export function useWebSocket(): UseWebSocketReturn {
       reconnectAttemptsRef.current++
       
       reconnectTimeoutRef.current = setTimeout(() => {
-        connect()
+        connectWebSocket()
       }, delay)
     }
 

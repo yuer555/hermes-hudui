@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useApi } from '../hooks/useApi'
 import Panel from './Panel'
 import { timeAgo, formatSize } from '../lib/utils'
+import { useI18n } from '../i18n'
 
 function SkillItem({ skill, variant }: { skill: any; variant: 'category' | 'recent' }) {
+  const { locale, t, formatDate } = useI18n()
   const descLimit = variant === 'category' ? 120 : 100
   return (
     <div className="py-2 px-2 text-[13px]" style={{ borderLeft: '2px solid var(--hud-border)' }}>
@@ -15,7 +17,7 @@ function SkillItem({ skill, variant }: { skill: any; variant: 'category' | 'rece
           </span>
         )}
         {skill.is_custom && (
-          <span className="text-[13px] px-1" style={{ background: 'var(--hud-accent)', color: 'var(--hud-bg-deep)' }}>custom</span>
+          <span className="text-[13px] px-1" style={{ background: 'var(--hud-accent)', color: 'var(--hud-bg-deep)' }}>{t('skills.customBadge')}</span>
         )}
         {variant === 'category' && (
           <span className="text-[13px] ml-auto" style={{ color: 'var(--hud-text-dim)' }}>
@@ -28,8 +30,8 @@ function SkillItem({ skill, variant }: { skill: any; variant: 'category' | 'rece
       </div>
       <div className="text-[13px] mt-0.5" style={{ color: 'var(--hud-text-dim)' }}>
         {variant === 'category'
-          ? `${skill.modified_at ? new Date(skill.modified_at).toLocaleDateString() : ''} · ${skill.path?.split('/').slice(-3).join('/')}`
-          : skill.modified_at ? timeAgo(skill.modified_at) : ''
+          ? `${skill.modified_at ? formatDate(skill.modified_at, { dateStyle: 'short' }) : ''} · ${skill.path?.split('/').slice(-3).join('/')}`
+          : skill.modified_at ? timeAgo(skill.modified_at, locale) : ''
         }
       </div>
     </div>
@@ -37,12 +39,13 @@ function SkillItem({ skill, variant }: { skill: any; variant: 'category' | 'rece
 }
 
 export default function SkillsPanel() {
+  const { t } = useI18n()
   const { data, isLoading } = useApi('/skills', 60000)
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
 
   // Only show loading on initial load
   if (isLoading && !data) {
-    return <Panel title="Skills" className="col-span-full"><div className="glow text-[13px] animate-pulse">Scanning skill library...</div></Panel>
+    return <Panel title={t('skills.panelTitle')} className="col-span-full"><div className="glow text-[13px] animate-pulse">{t('skills.loadingLibrary')}</div></Panel>
   }
 
   const catCounts: Record<string, number> = data.category_counts || {}
@@ -59,16 +62,16 @@ export default function SkillsPanel() {
   return (
     <>
       {/* Category overview */}
-      <Panel title="Skill Library" className="col-span-1">
+      <Panel title={t('skills.skillLibrary')} className="col-span-1">
         <div className="flex gap-2 mb-3">
           <span className="text-[13px] px-2 py-0.5" style={{ background: 'var(--hud-bg-panel)', color: 'var(--hud-primary)' }}>
-            {data.total} total
+            {data.total} {t('skills.total')}
           </span>
           <span className="text-[13px] px-2 py-0.5" style={{ background: 'var(--hud-bg-panel)', color: 'var(--hud-accent)' }}>
-            {data.custom_count} custom
+            {data.custom_count} {t('skills.custom')}
           </span>
           <span className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>
-            {sorted.length} categories
+            {sorted.length}{t('skills.categories')}
           </span>
         </div>
 
@@ -116,18 +119,18 @@ export default function SkillsPanel() {
               <SkillItem key={skill.name} skill={skill} variant="category" />
             ))}
             {catSkills.length === 0 && (
-              <div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>No skills in this category</div>
+              <div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>{t('skills.noSkillsInCategory')}</div>
             )}
           </div>
         </Panel>
       ) : (
-        <Panel title="Recently Modified">
+        <Panel title={t('skills.recentlyModified')}>
           <div className="space-y-2">
             {recentlyMod.map((skill: any) => (
               <SkillItem key={skill.name} skill={skill} variant="recent" />
             ))}
             {recentlyMod.length === 0 && (
-              <div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>No recent modifications</div>
+              <div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>{t('skills.noRecentModifications')}</div>
             )}
           </div>
         </Panel>

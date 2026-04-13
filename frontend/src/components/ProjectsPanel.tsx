@@ -1,7 +1,9 @@
 import { useApi } from '../hooks/useApi'
 import Panel from './Panel'
+import { useI18n } from '../i18n'
 
 function ProjectCard({ p }: { p: any }) {
+  const { t } = useI18n()
   return (
     <div className="p-2.5 text-[13px]"
       style={{
@@ -11,14 +13,14 @@ function ProjectCard({ p }: { p: any }) {
       <div className="flex items-center justify-between mb-0.5">
         <span className="font-bold" style={{ color: 'var(--hud-primary)' }}>{p.name}</span>
         <span className="text-[13px]" style={{ color: p.dirty_files > 0 ? 'var(--hud-warning)' : 'var(--hud-success)' }}>
-          {p.dirty_files > 0 ? `${p.dirty_files} dirty` : 'clean'}
+          {p.dirty_files > 0 ? t('projects.dirty', { count: p.dirty_files }) : t('projects.clean')}
         </span>
       </div>
       {p.is_git && (
         <>
           <div className="flex gap-3 mb-0.5" style={{ color: 'var(--hud-text-dim)' }}>
             {p.branch && <span>({p.branch})</span>}
-            {p.total_commits != null && <span>{p.total_commits} commits</span>}
+            {p.total_commits != null && <span>{t('projects.commits', { count: p.total_commits })}</span>}
             {p.last_commit_ago && <span>{p.last_commit_ago}</span>}
           </div>
           {p.last_commit_msg && (
@@ -40,16 +42,17 @@ function ProjectCard({ p }: { p: any }) {
 }
 
 export default function ProjectsPanel() {
+  const { t } = useI18n()
   const { data, isLoading } = useApi('/projects', 60000)
 
   // Only show loading on initial load
   if (isLoading && !data) {
-    return <Panel title="Projects" className="col-span-full"><div className="glow text-[13px] animate-pulse">Loading...</div></Panel>
+    return <Panel title={t('topbar.tabs.projects')} className="col-span-full"><div className="glow text-[13px] animate-pulse">{t('projects.loading')}</div></Panel>
   }
 
   const all = data.projects || data || []
   if (!Array.isArray(all) || all.length === 0) {
-    return <Panel title="Projects" className="col-span-full"><div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>No projects found</div></Panel>
+    return <Panel title={t('topbar.tabs.projects')} className="col-span-full"><div className="text-[13px]" style={{ color: 'var(--hud-text-dim)' }}>{t('projects.none')}</div></Panel>
   }
 
   const { gitRepos, active, recent, stale, noGit, dirtyCount } = all.reduce(
@@ -69,16 +72,16 @@ export default function ProjectsPanel() {
   )
 
   return (
-    <Panel title="Projects" className="col-span-full">
+    <Panel title={t('topbar.tabs.projects')} className="col-span-full">
       {/* Summary line — matching TUI */}
       <div className="text-[13px] mb-3">
-        <span className="font-bold">{all.length}</span> projects
+        <span className="font-bold">{t('projects.summaryProjects', { count: all.length })}</span>
         <span className="mx-2" style={{ color: 'var(--hud-text-dim)' }}>│</span>
-        <span className="font-bold">{gitRepos.length}</span> git repos
+        <span className="font-bold">{t('projects.gitRepos', { count: gitRepos.length })}</span>
         <span className="mx-2" style={{ color: 'var(--hud-text-dim)' }}>│</span>
-        <span style={{ color: 'var(--hud-success)' }}>{active.length} active</span>
+        <span style={{ color: 'var(--hud-success)' }}>{t('projects.summaryActive', { count: active.length })}</span>
         <span className="mx-2" style={{ color: 'var(--hud-text-dim)' }}>│</span>
-        <span style={{ color: dirtyCount > 0 ? 'var(--hud-warning)' : 'var(--hud-text-dim)' }}>{dirtyCount} dirty</span>
+        <span style={{ color: dirtyCount > 0 ? 'var(--hud-warning)' : 'var(--hud-text-dim)' }}>{t('projects.summaryDirty', { count: dirtyCount })}</span>
       </div>
       {data.projects_dir && (
         <div className="text-[13px] mb-3" style={{ color: 'var(--hud-text-dim)' }}>{data.projects_dir}</div>
@@ -87,7 +90,7 @@ export default function ProjectsPanel() {
       {/* ACTIVE */}
       {active.length > 0 && (
         <div className="mb-3">
-          <div className="text-[13px] font-bold mb-2" style={{ color: 'var(--hud-success)' }}>▶ ACTIVE</div>
+          <div className="text-[13px] font-bold mb-2" style={{ color: 'var(--hud-success)' }}>{t('projects.activeGroup')}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             {active.map((p: any) => <ProjectCard key={p.name} p={p} />)}
           </div>
@@ -97,7 +100,7 @@ export default function ProjectsPanel() {
       {/* RECENT */}
       {recent.length > 0 && (
         <div className="mb-3">
-          <div className="text-[13px] font-bold mb-2" style={{ color: 'var(--hud-warning)' }}>◆ RECENT</div>
+          <div className="text-[13px] font-bold mb-2" style={{ color: 'var(--hud-warning)' }}>{t('projects.recentGroup')}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             {recent.map((p: any) => <ProjectCard key={p.name} p={p} />)}
           </div>
@@ -107,7 +110,7 @@ export default function ProjectsPanel() {
       {/* STALE */}
       {stale.length > 0 && (
         <div className="mb-3">
-          <div className="text-[13px] mb-2" style={{ color: 'var(--hud-text-dim)' }}>◇ STALE</div>
+          <div className="text-[13px] mb-2" style={{ color: 'var(--hud-text-dim)' }}>{t('projects.staleGroup')}</div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-1">
             {stale.map((p: any) => (
               <div key={p.name} className="text-[13px] py-0.5 truncate" style={{ color: 'var(--hud-text-dim)' }}>
@@ -122,7 +125,7 @@ export default function ProjectsPanel() {
       {/* NO GIT */}
       {noGit.length > 0 && (
         <div>
-          <div className="text-[13px] mb-2" style={{ color: 'var(--hud-text-dim)' }}>─ NO GIT</div>
+          <div className="text-[13px] mb-2" style={{ color: 'var(--hud-text-dim)' }}>{t('projects.noGitGroup')}</div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-1">
             {noGit.map((p: any) => (
               <div key={p.name} className="text-[13px] py-0.5 truncate" style={{ color: 'var(--hud-text-dim)' }}>
