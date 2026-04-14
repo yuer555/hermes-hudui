@@ -1,4 +1,4 @@
-"""CLI-based chat engine using hermes subprocess."""
+"""Hermes-backed chat engine with a direct runner and CLI fallback."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from backend.collectors.utils import default_hermes_dir
 from .models import (
@@ -31,6 +31,7 @@ _SESSION_ID_RE = re.compile(r'^session_id:\s+(\S+)')
 _HEADER_RE = re.compile(r'[╭╰][\s─]*[◉◈●]?\s*(MOTHER|HERMES|hermes)\s*[─╮╯]')
 # Hermes system warning lines (context compression, etc.) — not part of the model response
 _WARNING_RE = re.compile(r'^⚠')
+_DIRECT_RUNNER_PATH = Path(__file__).with_name("direct_runner.py")
 
 
 def _emit_tool_events(streamer: "ChatStreamer", hermes_session_id: str) -> None:
@@ -83,6 +84,24 @@ class ChatNotAvailableError(Exception):
     pass
 
 
+def _detect_runner_python(hermes_path: str | None) -> str | None:
+    """Resolve the Hermes venv python sitting next to the hermes entrypoint."""
+    if not hermes_path:
+        return None
+
+    try:
+        hermes_bin = Path(os.path.realpath(hermes_path))
+    except Exception:
+        return None
+
+    for candidate_name in ("python3", "python"):
+        candidate = hermes_bin.with_name(candidate_name)
+        if candidate.exists():
+            return str(candidate)
+
+    return None
+
+
 class ChatEngine:
     """Chat engine using hermes CLI subprocess with -q (query) and -Q (quiet) flags."""
 
@@ -106,6 +125,7 @@ class ChatEngine:
         self._processes: dict[str, subprocess.Popen] = {}
         self._initialized = True
         self._hermes_path = shutil.which("hermes")
+        self._runner_python = _detect_runner_python(self._hermes_path)
         self._cli_available = self._check_cli()
 
     def _check_cli(self) -> bool:
@@ -122,13 +142,18 @@ class ChatEngine:
 
     def is_available(self) -> bool:
         """Check if chat is available."""
-        return self._cli_available
+        return self._can_run_direct() or self._cli_available
 
     def create_session(
         self, profile: Optional[str] = None, model: Optional[str] = None
     ) -> ChatSession:
         """Create a new chat session."""
-        if not self._cli_available:
+        if profile and not self._cli_available:
+            raise ChatNotAvailableError(
+                "Hermes CLI is required when using chat profiles."
+            )
+
+        if not self.is_available():
             raise ChatNotAvailableError(
                 "Hermes CLI not available. Install hermes-agent: pip install hermes-agent"
             )
@@ -140,7 +165,7 @@ class ChatEngine:
             profile=profile,
             model=model,
             title=f"Chat {session_id}",
-            backend_type="cli",
+            backend_type="direct" if self._runner_python and profile is None else "cli",
         )
         self._sessions[session_id] = session
 
@@ -175,12 +200,71 @@ class ChatEngine:
             return True
         return False
 
+    def _can_run_direct(self) -> bool:
+        return bool(self._runner_python and _DIRECT_RUNNER_PATH.exists())
+
+    def _can_use_runner(self, session: ChatSession) -> bool:
+        """Use the machine-readable runner for plain sessions without CLI-only profile flags."""
+        return self._can_run_direct() and session.profile is None
+
+    def _handle_runner_event(self, streamer: ChatStreamer, event: dict[str, Any]) -> bool:
+        """Translate a JSON event from the helper runner into streamer events."""
+        event_type = event.get("type")
+
+        if event_type == "token":
+            streamer.emit_token(str(event.get("text", "")))
+            return False
+
+        if event_type == "reasoning":
+            content = str(event.get("content", ""))
+            if content:
+                streamer.emit_reasoning(content)
+            return False
+
+        if event_type == "tool_start":
+            streamer.emit_tool_start(
+                str(event.get("id", "")),
+                str(event.get("name", "unknown")),
+                event.get("arguments") if isinstance(event.get("arguments"), dict) else {},
+            )
+            return False
+
+        if event_type == "tool_end":
+            streamer.emit_tool_end(
+                str(event.get("id", "")),
+                event.get("result"),
+                event.get("error") if isinstance(event.get("error"), str) else None,
+            )
+            return False
+
+        if event_type == "done":
+            streamer.emit_done()
+            return True
+
+        if event_type == "error":
+            streamer.emit_error(str(event.get("message", "Unknown runner error")))
+            return True
+
+        return False
+
+    def _build_runner_command(self) -> list[str]:
+        if not self._runner_python:
+            raise ChatNotAvailableError("Hermes runner python is not available")
+        return [self._runner_python, "-u", str(_DIRECT_RUNNER_PATH)]
+
+    def _build_runner_request(self, session: ChatSession, content: str) -> dict[str, Any]:
+        return {
+            "session_id": session.id,
+            "content": content,
+            "model": session.model,
+        }
+
     def send_message(
         self,
         session_id: str,
         content: str,
     ) -> ChatStreamer:
-        """Send a message using hermes chat -q -Q and stream stdout."""
+        """Send a message and stream output via the direct runner or CLI fallback."""
         session = self._sessions.get(session_id)
         if not session:
             raise ChatNotAvailableError(f"Session {session_id} not found")
@@ -204,13 +288,86 @@ class ChatEngine:
         session.message_count += 1
         session.last_activity = datetime.now()
 
-        # Build command: hermes chat -q "message" -Q (quiet mode)
+        if self._can_use_runner(session):
+            self._send_message_with_runner(session, content, streamer)
+        else:
+            self._send_message_with_cli(session, content, streamer)
+
+        return streamer
+
+    def _send_message_with_runner(
+        self, session: ChatSession, content: str, streamer: ChatStreamer
+    ) -> None:
+        request = self._build_runner_request(session, content)
+        cmd = self._build_runner_command()
+
+        def run_subprocess():
+            finished = False
+            try:
+                process = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,
+                    cwd=os.path.expanduser("~"),
+                )
+                self._processes[session.id] = process
+
+                if process.stdin is None or process.stdout is None:
+                    raise RuntimeError("Hermes runner did not expose stdio pipes")
+
+                process.stdin.write(json.dumps(request, ensure_ascii=False))
+                process.stdin.close()
+
+                for raw_line in process.stdout:
+                    if streamer._stopped.is_set():
+                        break
+                    line = raw_line.strip()
+                    if not line:
+                        continue
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(event, dict):
+                        continue
+                    if self._handle_runner_event(streamer, event):
+                        finished = True
+                        break
+
+                process.wait()
+
+                if not finished:
+                    stderr = process.stderr.read().strip() if process.stderr else ""
+                    if process.returncode != 0 and stderr:
+                        streamer.emit_error(f"Runner error: {stderr}")
+                    elif process.returncode != 0:
+                        streamer.emit_error(
+                            f"Hermes runner exited with status {process.returncode}"
+                        )
+                    else:
+                        streamer.emit_done()
+
+            except Exception as e:
+                streamer.emit_error(f"Failed to run Hermes runner: {e}")
+            finally:
+                self._processes.pop(session.id, None)
+
+        threading.Thread(target=run_subprocess, daemon=True).start()
+
+    def _send_message_with_cli(
+        self, session: ChatSession, content: str, streamer: ChatStreamer
+    ) -> None:
+        if not self._cli_available or not self._hermes_path:
+            raise ChatNotAvailableError("Hermes CLI is not available")
+
         cmd = [self._hermes_path, "chat", "-q", content, "-Q"]
         if session.profile:
             cmd.extend(["--profile", session.profile])
         if session.model:
             cmd.extend(["-m", session.model])
-        # Tag as tool source so it doesn't clutter user session list
         cmd.extend(["--source", "tool"])
 
         def _is_decoration_line(line: str) -> bool:
@@ -222,7 +379,6 @@ class ChatEngine:
                 return True
             if _BOX_DRAWING_RE.match(stripped):
                 return True
-            # Top/bottom border lines (╭─ ... or ╰─ ...) — skip entirely
             if _BOX_BORDER_START_RE.match(line):
                 return True
             return False
@@ -240,9 +396,8 @@ class ChatEngine:
                     stderr=subprocess.PIPE,
                     cwd=os.path.expanduser("~"),
                 )
-                self._processes[session_id] = process
+                self._processes[session.id] = process
 
-                # Stream stdout line by line, filtering decoration
                 started_content = False
                 in_warning_block = False
                 hermes_session_id = None
@@ -252,54 +407,45 @@ class ChatEngine:
                     text = line.decode("utf-8", errors="replace")
                     stripped = text.strip()
 
-                    # Detect start of a multi-line warning block (⚠ ...)
                     if _WARNING_RE.match(stripped):
                         in_warning_block = True
                         continue
 
-                    # A blank line or non-indented line ends the warning block
                     if in_warning_block:
                         if not stripped:
                             in_warning_block = False
                             continue
                         if text[0] in (' ', '\t'):
-                            continue  # indented continuation — still in warning
-                        in_warning_block = False  # non-indented line — fall through
+                            continue
+                        in_warning_block = False
 
-                    # Capture session ID for post-completion tool event query
                     m = _SESSION_ID_RE.match(stripped)
                     if m:
                         hermes_session_id = m.group(1)
                         continue
 
-                    # Skip single-line decoration (box drawing, headers)
                     if _is_decoration_line(text):
                         continue
 
-                    # Extract content from │ ... │ box lines
                     box_inner = _extract_box_content(text)
                     if box_inner is not None:
                         if box_inner:
                             text = box_inner + "\n"
                             stripped = text.strip()
                         else:
-                            continue  # empty box line
+                            continue
 
-                    # Skip leading empty lines before content starts
                     if not started_content and not stripped:
                         continue
 
                     started_content = True
-
                     streamer.emit_token(text)
 
                 process.wait()
 
-                # Emit tool calls and reasoning from state.db
                 if hermes_session_id and not streamer._stopped.is_set():
                     _emit_tool_events(streamer, hermes_session_id)
 
-                # Check for errors
                 if process.returncode != 0:
                     stderr = process.stderr.read().decode("utf-8", errors="replace")
                     if stderr.strip():
@@ -312,11 +458,9 @@ class ChatEngine:
             except Exception as e:
                 streamer.emit_error(f"Failed to run hermes: {e}")
             finally:
-                self._processes.pop(session_id, None)
+                self._processes.pop(session.id, None)
 
         threading.Thread(target=run_subprocess, daemon=True).start()
-
-        return streamer
 
     def cancel_stream(self, session_id: str) -> None:
         """Kill the active subprocess for a session, stopping the stream."""

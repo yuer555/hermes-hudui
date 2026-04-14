@@ -12,10 +12,24 @@ interface MessageThreadProps {
 export default function MessageThread({ messages }: MessageThreadProps) {
   const { t } = useI18n()
   const bottomRef = useRef<HTMLDivElement>(null)
+  const previousStateRef = useRef<{ count: number; lastMessageId: string | null }>({
+    count: 0,
+    lastMessageId: null,
+  })
 
-  // Auto-scroll to bottom on new messages
+  // New messages can animate into view, but streaming updates should scroll instantly.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const lastMessage = messages[messages.length - 1]
+    const previousState = previousStateRef.current
+    const isNewMessage =
+      messages.length > previousState.count || lastMessage?.id !== previousState.lastMessageId
+
+    bottomRef.current?.scrollIntoView({ behavior: isNewMessage ? 'smooth' : 'auto' })
+
+    previousStateRef.current = {
+      count: messages.length,
+      lastMessageId: lastMessage?.id ?? null,
+    }
   }, [messages])
 
   return (
@@ -48,6 +62,7 @@ export default function MessageThread({ messages }: MessageThreadProps) {
             <MessageBubble
               role={message.role}
               content={message.content}
+              timestamp={message.timestamp}
               isStreaming={message.isStreaming}
             />
           </div>

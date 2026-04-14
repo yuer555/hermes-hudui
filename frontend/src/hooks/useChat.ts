@@ -278,7 +278,7 @@ export function useChat(sessionId: string | null) {
             setMessages(prev =>
               prev.map(msg =>
                 msg.id === assistantMessageId
-                  ? { ...msg, isStreaming: false, content: currentAssistantMessageRef.current }
+                  ? { ...msg, isStreaming: false, content: currentAssistantMessageRef.current, timestamp: new Date() }
                   : msg
               )
             )
@@ -292,7 +292,7 @@ export function useChat(sessionId: string | null) {
             setMessages(prev =>
               prev.map(msg =>
                 msg.id === assistantMessageId
-                  ? { ...msg, isStreaming: false, content: msg.content || `${t('chat.errorPrefix')} ${data.data.message}` }
+                  ? { ...msg, isStreaming: false, content: msg.content || `${t('chat.errorPrefix')} ${data.data.message}`, timestamp: new Date() }
                   : msg
               )
             )
@@ -307,7 +307,7 @@ export function useChat(sessionId: string | null) {
         setMessages(prev =>
           prev.map(msg =>
             msg.id === assistantMessageId
-              ? { ...msg, isStreaming: false, content: msg.content || t('chat.message.connectionLost') }
+              ? { ...msg, isStreaming: false, content: msg.content || t('chat.message.connectionLost'), timestamp: new Date() }
               : msg
           )
         )
@@ -320,7 +320,7 @@ export function useChat(sessionId: string | null) {
       setMessages(prev =>
         prev.map(msg =>
           msg.id === assistantMessageId
-            ? { ...msg, isStreaming: false, content: msg.content || t('chat.errors.errorSendingMessage') }
+            ? { ...msg, isStreaming: false, content: msg.content || t('chat.errors.errorSendingMessage'), timestamp: new Date() }
             : msg
         )
       )
@@ -353,7 +353,7 @@ export function useChat(sessionId: string | null) {
     setMessages(prev =>
       prev.map((msg, i) =>
         i === prev.length - 1 && msg.role === 'assistant' && msg.isStreaming
-          ? { ...msg, isStreaming: false, content: msg.content || t('chat.message.cancelled') }
+          ? { ...msg, isStreaming: false, content: msg.content || t('chat.message.cancelled'), timestamp: new Date() }
           : msg
       )
     )

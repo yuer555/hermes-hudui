@@ -66,7 +66,7 @@ function TranscriptViewer({ sessionId, onClose }: { sessionId: string; onClose: 
           )}
           {!isLoading && data?.messages?.map((msg: any) => (
             <div key={msg.id}>
-              <MessageBubble role={msg.role} content={msg.content} />
+              <MessageBubble role={msg.role} content={msg.content} timestamp={msg.timestamp} />
               {msg.token_count > 0 && (
                 <div className="text-[10px] mb-1 text-right" style={{ color: 'var(--hud-text-dim)', marginTop: '-8px' }}>
                   {t('sessions.tokensCount', { count: formatNumber(msg.token_count) })}

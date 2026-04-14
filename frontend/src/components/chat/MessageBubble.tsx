@@ -8,6 +8,7 @@ import { useI18n } from '../../i18n'
 interface MessageBubbleProps {
   role: 'user' | 'assistant' | 'system' | 'tool'
   content: string
+  timestamp?: Date | string | number
   isStreaming?: boolean
 }
 
@@ -48,28 +49,63 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-export default function MessageBubble({ role, content, isStreaming }: MessageBubbleProps) {
+function normalizeTimestamp(value?: Date | string | number): Date | null {
+  if (value === undefined || value === null) return null
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+  if (typeof value === 'number') {
+    const ms = value > 1e12 ? value : value * 1000
+    const date = new Date(ms)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+export default function MessageBubble({ role, content, timestamp, isStreaming }: MessageBubbleProps) {
   const isUser = role === 'user'
   const isAssistant = role === 'assistant'
+  const parsedTimestamp = normalizeTimestamp(timestamp)
+  const timeText = parsedTimestamp
+    ? new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).format(parsedTimestamp)
+    : null
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
       <div
-        className="max-w-[85%] px-3 py-2 text-[14px] leading-relaxed"
-        style={{
-          background: isUser
-            ? 'var(--hud-primary)'
-            : isAssistant
-              ? 'var(--hud-bg-panel)'
-              : 'var(--hud-bg-surface)',
-          color: isUser ? 'var(--hud-bg-deep)' : 'var(--hud-text)',
-          borderLeft: isUser
-            ? 'none'
-            : isAssistant
-              ? '2px solid var(--hud-primary)'
-              : '2px solid var(--hud-text-dim)',
-        }}
+        className="max-w-[85%]"
       >
+        {timeText && (
+          <div
+            className={`text-[11px] mb-1 ${isUser ? 'text-right' : 'text-left'}`}
+            style={{ color: 'var(--hud-text-dim)' }}
+            title={timeText || undefined}
+          >
+            {timeText}
+          </div>
+        )}
+        <div
+          className="px-3 py-2 text-[14px] leading-relaxed"
+          style={{
+            background: isUser
+              ? 'var(--hud-primary)'
+              : isAssistant
+                ? 'var(--hud-bg-panel)'
+                : 'var(--hud-bg-surface)',
+            color: isUser ? 'var(--hud-bg-deep)' : 'var(--hud-text)',
+            borderLeft: isUser
+              ? 'none'
+              : isAssistant
+                ? '2px solid var(--hud-primary)'
+                : '2px solid var(--hud-text-dim)',
+          }}
+        >
         {isUser ? (
           // User messages: plain text, preserve whitespace
           <span style={{ whiteSpace: 'pre-wrap' }}>{content}</span>
@@ -221,6 +257,7 @@ export default function MessageBubble({ role, content, isStreaming }: MessageBub
             ●
           </span>
         )}
+        </div>
       </div>
     </div>
   )
